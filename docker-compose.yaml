@@ -1,0 +1,114 @@
+version: '3'
+services:
+  nginx_kronos_scheduler:
+    build:
+      context: ""
+      dockerfile: dockerfile/nginx.dockerfile
+      args:
+        API_HOST: kronos_scheduler
+        API_PORT: 5678
+    image: nginx_kronos_scheduler:latest
+    ports:
+      - "2000:80"
+    depends_on:
+      - kronos_scheduler
+  kronos_scheduler:
+    build:
+      context: ""
+      dockerfile: dockerfile/kronos-scheduler.dockerfile
+    image: kronos_scheduler:latest
+    ports:
+      - "5678"
+    env_file:
+      - aws.env
+    environment:
+      - SERVER_PORT=5678
+      - SERVER_TIMEOUT=500
+      - SERVER_WORKER_COUNT=3
+      - SERVER_THREAD_COUNT=1
+  nginx_kronos_insights:
+    build:
+      context: ""
+      dockerfile: dockerfile/nginx.dockerfile
+      args:
+        API_HOST: kronos_insights
+        API_PORT: 6789
+    image: nginx_kronos_insights:latest
+    ports:
+      - "3000:80"
+    depends_on:
+      - kronos_insights
+  kronos_insights:
+    build:
+      context: ""
+      dockerfile: dockerfile/kronos-insights.dockerfile
+    image: kronos_insights:latest
+    ports:
+      - "6789"
+    env_file:
+      - aws.env
+    environment:
+      - SERVER_PORT=6789
+  nginx_kronos_explorer:
+    build:
+      context: ""
+      dockerfile: dockerfile/nginx.dockerfile
+      args:
+        API_HOST: kronos_explorer
+        API_PORT: 8088
+    image: nginx_kronos_explorer:latest
+    ports:
+      - "5000:80"
+    depends_on:
+      - kronos_explorer
+  kronos_explorer:
+    build:
+      context: ""
+      dockerfile: dockerfile/superset.dockerfile
+    image: kronos_explorer:latest
+    ports:
+      - "8088"
+    environment:
+      - SERVER_PORT=8088
+  nginx_kronos_provenance:
+    build:
+      context: ""
+      dockerfile: dockerfile/nginx.dockerfile
+      args:
+        API_HOST: kronos_provenance
+        API_PORT: 5454
+    image: nginx_kronos_provenance:latest
+    ports:
+      - "4000:80"
+    depends_on:
+      - kronos_provenance
+  kronos_provenance:
+    build:
+      context: .
+      dockerfile: dockerfile/mlflows3.dockerfile
+    image: kronos_provenance:latest
+    depends_on:
+      - mlflow_mysql
+    env_file:
+      - aws.env
+    ports:
+      - "5454"
+    environment:
+      - MYSQL_PORT=3306
+      - MLFLOW_PORT=5454
+      - MYSQL_DATABASE=mlflow
+      - MYSQL_USER=mysql
+      - MYSQL_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=password
+      - MLFLOW_ARTIFACT_URI=s3://dev-kronos-model/mlflow
+  mlflow_mysql:
+    image: mysql:5.7.31
+    ports:
+      - "3306"
+    volumes:
+      - ./deployment_config/mysql/data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=mlflow
+      - MYSQL_USER=mysql
+      - MYSQL_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=password
